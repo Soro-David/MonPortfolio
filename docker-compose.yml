@@ -4,6 +4,7 @@ services:
     container_name: laravel
     volumes:
       - ./laravel:/var/www
+    command: sh -lc "mkdir -p /var/www/storage/logs /var/www/storage/app/public /var/www/bootstrap/cache && touch /var/www/storage/logs/laravel.log && chgrp -R www-data /var/www/storage /var/www/bootstrap/cache && chmod -R ug+rwx /var/www/storage /var/www/bootstrap/cache && find /var/www/storage /var/www/bootstrap/cache -type d -exec chmod g+s {} \\; && php-fpm"
     depends_on:
       - db
 
