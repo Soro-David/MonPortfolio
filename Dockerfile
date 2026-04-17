@@ -2,7 +2,8 @@ FROM php:8.4-fpm
 
 # Dépendances système
 RUN apt-get update && apt-get install -y \
-    git curl zip unzip libpng-dev libonig-dev libxml2-dev libzip-dev
+    git curl zip unzip libpng-dev libonig-dev libxml2-dev libzip-dev \
+    default-mysql-client
 
 # Extensions PHP
 RUN docker-php-ext-install pdo pdo_mysql mbstring exif pcntl bcmath gd zip
