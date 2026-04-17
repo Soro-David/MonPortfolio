@@ -25,6 +25,9 @@ RUN composer install
 # Installer frontend
 RUN npm install && npm run build
 
+# Forcer le mode assets buildés en production (désactive Vite dev server)
+RUN rm -f /var/www/public/hot
+
 # Config PHP pour les uploads (images, fichiers)
 RUN echo "upload_max_filesize = 20M\npost_max_size = 25M\nmax_execution_time = 120\nmax_input_time = 120\nmemory_limit = 256M" \
     > /usr/local/etc/php/conf.d/uploads.ini

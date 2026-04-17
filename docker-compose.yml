@@ -21,7 +21,7 @@ services:
 
   db:
     image: mysql:8
-    container_name: mysql
+    container_name: portfolio_db
     restart: always
     environment:
       MYSQL_DATABASE: portfolio
