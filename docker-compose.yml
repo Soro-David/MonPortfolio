@@ -26,8 +26,6 @@ services:
     environment:
       MYSQL_DATABASE: portfolio
       MYSQL_ROOT_PASSWORD: root
-    ports:
-      - "3307:3306"
 
   node:
     image: node:22

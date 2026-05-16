@@ -1,36 +1,58 @@
-FROM php:8.4-fpm
+# =============================================================
+# MonPortfolio – Image optimisée pour la production
+# Base alpine : extensions PHP précompilées (pas de compilation)
+# =============================================================
+FROM php:8.4-fpm-alpine AS base
 
-# Dépendances système
-RUN apt-get update && apt-get install -y \
-    git curl zip unzip libpng-dev libonig-dev libxml2-dev libzip-dev \
-    default-mysql-client
+# Dépendances système légères (alpine = apk, pas apt)
+RUN apk add --no-cache \
+    git curl zip unzip \
+    libpng-dev libzip-dev oniguruma-dev libxml2-dev \
+    mysql-client nginx supervisor
 
-# Extensions PHP
-RUN docker-php-ext-install pdo pdo_mysql mbstring exif pcntl bcmath gd zip
+# Extensions PHP via docker-php-ext-install (précompilées dans l'image)
+RUN docker-php-ext-install pdo pdo_mysql mbstring exif pcntl bcmath gd zip opcache
 
-# Installer Node.js
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
-    && apt-get install -y nodejs
+# Config PHP optimisée production
+RUN { \
+    echo 'upload_max_filesize = 20M'; \
+    echo 'post_max_size = 25M'; \
+    echo 'max_execution_time = 120'; \
+    echo 'memory_limit = 256M'; \
+    echo 'opcache.enable=1'; \
+    echo 'opcache.memory_consumption=128'; \
+    } > /usr/local/etc/php/conf.d/custom.ini
 
-# Installer Composer
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+# ======== Composer ========
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www
 
-# Copier Laravel
+# Copier d'abord les fichiers de dépendances pour bénéficier du cache Docker
+COPY laravel/composer.json laravel/composer.lock ./
+RUN composer install --no-dev --no-interaction --optimize-autoloader --no-scripts
+
+# Copier le reste du projet Laravel
 COPY laravel/ .
 
-# Installer dépendances backend
-RUN composer install
+# Build assets frontend si package.json présent
+RUN if [ -f package.json ]; then \
+    apk add --no-cache nodejs npm && \
+    npm ci --prefer-offline && \
+    npm run build && \
+    rm -f public/hot; \
+    fi
 
-# Installer frontend
-RUN npm install && npm run build
+# Permissions storage/cache
+RUN chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache \
+    && chmod -R 775 /var/www/storage /var/www/bootstrap/cache
 
-# Forcer le mode assets buildés en production (désactive Vite dev server)
-RUN rm -f /var/www/public/hot
+# ======== Nginx config (pour servir les assets statiques) ========
+COPY docker/nginx-portfolio.conf /etc/nginx/http.d/default.conf
 
-# Config PHP pour les uploads (images, fichiers)
-RUN echo "upload_max_filesize = 20M\npost_max_size = 25M\nmax_execution_time = 120\nmax_input_time = 120\nmemory_limit = 256M" \
-    > /usr/local/etc/php/conf.d/uploads.ini
+# ======== Supervisor config (nginx + php-fpm ensemble) ========
+COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-CMD ["php-fpm"]
+EXPOSE 8000
+
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]

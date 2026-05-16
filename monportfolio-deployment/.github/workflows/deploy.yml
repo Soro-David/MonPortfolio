@@ -1,0 +1,44 @@
+name: Deploy MonPortfolio
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '14'
+
+      - name: Install dependencies
+        run: |
+          cd MonPortfolio
+          npm install
+
+      - name: Run tests
+        run: |
+          cd MonPortfolio
+          npm test
+
+      - name: Build application
+        run: |
+          cd MonPortfolio
+          npm run build
+
+      - name: Deploy to VPS
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+        run: |
+          chmod 600 id_rsa
+          scp -o StrictHostKeyChecking=no -i $SSH_PRIVATE_KEY -r MonPortfolio/* $VPS_USER@$VPS_HOST:/path/to/deployment/directory
+          ssh -o StrictHostKeyChecking=no -i $SSH_PRIVATE_KEY $VPS_USER@$VPS_HOST 'bash -s' < scripts/deploy.sh
