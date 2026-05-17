@@ -1,147 +1,219 @@
-# ============================================================
+# =============================================================
 #  Makefile — MonPortfolio
-#  Application Laravel + Nginx + MySQL + Node (Vite)
-# ============================================================
+#  Stack : Laravel (Inertia/Vue3) + Nginx + MySQL + Vite
+# =============================================================
 
-# Couleurs pour les messages
 GREEN  := \033[0;32m
 YELLOW := \033[1;33m
 RED    := \033[0;31m
+CYAN   := \033[0;36m
 RESET  := \033[0m
 
-# Conteneur principal Laravel (php-fpm)
-APP_CONTAINER := laravel
+COMPOSE      := docker compose
+APP          := monportfolio-app
+EXEC         := $(COMPOSE) exec -T app
+EXEC_IT      := $(COMPOSE) exec app
+EXEC_DB      := $(COMPOSE) exec -T mysql
+APP_URL      ?= http://localhost:8000
 
-# ============================================================
-#  Aide
-# ============================================================
 .DEFAULT_GOAL := help
 
+# =============================================================
+#  Aide
+# =============================================================
 help: ## Affiche cette aide
 	@echo ""
 	@echo "$(GREEN)MonPortfolio — Commandes disponibles$(RESET)"
-	@echo "---------------------------------------"
-	@awk 'BEGIN {FS = ":.*##"} /^[a-zA-Z_-]+:.*##/ { printf "  $(YELLOW)%-18s$(RESET) %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
+	@echo "================================================="
+	@awk 'BEGIN {FS = ":.*##"} /^[a-zA-Z_-]+:.*##/ { printf "  $(YELLOW)%-20s$(RESET) %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
 	@echo ""
 
-# ============================================================
-#  Docker — Cycle de vie
-# ============================================================
-up: ## Démarre tous les services (build si nécessaire)
-	@echo "$(GREEN)▶  Démarrage des services...$(RESET)"
-	docker compose up -d --build
-	@$(MAKE) fix-perms
+# =============================================================
+#  🐳  Docker — Cycle de vie
+# =============================================================
+up: ## Démarre toute la stack (build + run)
+	@echo "$(GREEN)▶  Démarrage de la stack...$(RESET)"
+	@$(COMPOSE) up -d --build --remove-orphans
+	@echo "$(YELLOW)⏳  Attente de la disponibilité de l'app...$(RESET)"
+	@sleep 5
+	@echo "$(GREEN)✅  App disponible sur $(APP_URL)$(RESET)"
 
-start: ## Démarre les services sans rebuild
-	@echo "$(GREEN)▶  Démarrage des services...$(RESET)"
-	docker compose up -d
+up-core: ## Démarre uniquement MySQL + app (sans Vite ni Nginx)
+	@echo "$(GREEN)▶  Démarrage core (mysql + app)...$(RESET)"
+	@$(COMPOSE) up -d --build --remove-orphans mysql app
 
-stop: ## Arrête tous les services
-	@echo "$(YELLOW)■  Arrêt des services...$(RESET)"
-	docker compose stop
+up-dev: ## Démarre la stack complète avec Vite HMR
+	@echo "$(GREEN)▶  Démarrage stack dev complète...$(RESET)"
+	@$(COMPOSE) up -d --build --remove-orphans
+	@echo "$(GREEN)✅  App      → $(APP_URL)$(RESET)"
+	@echo "$(CYAN)✅  Vite HMR → http://localhost:5173$(RESET)"
+
+start: ## Démarre les conteneurs déjà buildés (sans rebuild)
+	@$(COMPOSE) up -d --remove-orphans
+
+stop: ## Arrête tous les conteneurs (sans les supprimer)
+	@echo "$(YELLOW)■  Arrêt des conteneurs...$(RESET)"
+	@$(COMPOSE) stop
 
 down: ## Arrête et supprime les conteneurs
 	@echo "$(RED)✗  Suppression des conteneurs...$(RESET)"
-	docker compose down
+	@$(COMPOSE) down --remove-orphans
 
-restart: ## Redémarre tous les services
-	@echo "$(YELLOW)↺  Redémarrage des services...$(RESET)"
-	docker compose restart
+restart: ## Redémarre tous les conteneurs
+	@echo "$(YELLOW)↺  Redémarrage...$(RESET)"
+	@$(COMPOSE) restart
 
-rebuild: ## Reconstruit les images et redémarre
-	@echo "$(GREEN)⟳  Reconstruction des images...$(RESET)"
-	docker compose down
-	docker compose up -d --build
+rebuild: ## Rebuild complet depuis zéro (down + up)
+	@echo "$(RED)⟳  Rebuild complet...$(RESET)"
+	@$(COMPOSE) down --remove-orphans
+	@$(MAKE) up
 
+ps: ## Affiche l'état des conteneurs
+	@$(COMPOSE) ps
+
+# =============================================================
+#  🔧  Maintenance
+# =============================================================
 fix-perms: ## Corrige les permissions storage/ et bootstrap/cache/
 	@echo "$(YELLOW)🔧  Correction des permissions...$(RESET)"
-	docker exec $(APP_CONTAINER) bash -c "chmod -R 775 storage bootstrap/cache && chown -R www-data:www-data storage bootstrap/cache"
-	@echo "$(GREEN)✅  Permissions corrigées$(RESET)"
+	@$(EXEC) sh -c "mkdir -p storage/framework/{sessions,views,cache} bootstrap/cache \
+		&& chmod -R 775 storage bootstrap/cache \
+		&& chown -R www-data:www-data storage bootstrap/cache"
+	@echo "$(GREEN)✅  Permissions OK$(RESET)"
 
 create-db: ## Crée la base de données si elle n'existe pas
-	@echo "$(YELLOW)🗄️  Création de la base de données...$(RESET)"
-	docker exec mysql mysql -uroot -proot -e "CREATE DATABASE IF NOT EXISTS portfolio CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-	@echo "$(GREEN)✅  Base de données prête$(RESET)"
+	@echo "$(YELLOW)🗄️   Création de la base de données...$(RESET)"
+	@$(EXEC_DB) mysql -uroot -proot -e \
+		"CREATE DATABASE IF NOT EXISTS portfolio CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+	@echo "$(GREEN)✅  Base 'portfolio' prête$(RESET)"
 
-# ============================================================
-#  Laravel — Commandes Artisan
-# ============================================================
-migrate: ## Lance les migrations Laravel
-	@echo "$(GREEN)⇢  Migration de la base de données...$(RESET)"
-	docker exec $(APP_CONTAINER) php artisan migrate
+# =============================================================
+#  🛠️  Laravel — Artisan
+# =============================================================
+migrate: ## Lance les migrations
+	@echo "$(GREEN)⇢  Migration...$(RESET)"
+	@$(EXEC) php artisan migrate --seed
 
 migrate-fresh: ## Recrée toutes les tables + seeders
-	@echo "$(RED)⚠  Recréation complète de la BDD...$(RESET)"
-	docker exec $(APP_CONTAINER) php artisan migrate:fresh --seed
+	@echo "$(RED)⚠   Recréation complète de la BDD (perte de données !)...$(RESET)"
+	@$(EXEC) php artisan migrate:fresh --seed
 
 seed: ## Joue les seeders
-	@echo "$(GREEN)⇢  Seeding de la base de données...$(RESET)"
-	docker exec $(APP_CONTAINER) php artisan db:seed
+	@echo "$(GREEN)⇢  Seeding...$(RESET)"
+	@$(EXEC) php artisan db:seed
 
-cache: ## Vide tous les caches Laravel
-	@echo "$(YELLOW)🗑  Vidage des caches...$(RESET)"
-	docker exec $(APP_CONTAINER) php artisan cache:clear
-	docker exec $(APP_CONTAINER) php artisan config:clear
-	docker exec $(APP_CONTAINER) php artisan route:clear
-	docker exec $(APP_CONTAINER) php artisan view:clear
+key: ## Génère la clé d'application
+	@echo "$(GREEN)🔑  Génération de la clé APP_KEY...$(RESET)"
+	@$(EXEC) php artisan key:generate
+
+storage-link: ## Crée le lien symbolique public/storage
+	@$(EXEC) php artisan storage:link --force
+
+cache-clear: ## Vide tous les caches Laravel
+	@echo "$(YELLOW)🗑   Vidage des caches...$(RESET)"
+	@$(EXEC) php artisan cache:clear
+	@$(EXEC) php artisan config:clear
+	@$(EXEC) php artisan route:clear
+	@$(EXEC) php artisan view:clear
+	@echo "$(GREEN)✅  Caches vidés$(RESET)"
 
 optimize: ## Optimise l'application (cache config/routes/views)
-	@echo "$(GREEN)✦  Optimisation de l'application...$(RESET)"
-	docker exec $(APP_CONTAINER) php artisan optimize
+	@echo "$(GREEN)✦  Optimisation...$(RESET)"
+	@$(EXEC) php artisan optimize
 
-key: ## Génère la clé d'application Laravel
-	@echo "$(GREEN)🔑  Génération de la clé...$(RESET)"
-	docker exec $(APP_CONTAINER) php artisan key:generate
+# =============================================================
+#  📋  Logs
+# =============================================================
+logs: ## Logs de tous les services (suivi en temps réel)
+	@$(COMPOSE) logs -f
 
-storage-link: ## Crée le lien symbolique storage
-	docker exec $(APP_CONTAINER) php artisan storage:link
+logs-app: ## Logs du conteneur Laravel/PHP-FPM
+	@$(COMPOSE) logs -f app
 
-# ============================================================
-#  Shell / Logs
-# ============================================================
-bash: ## Ouvre un shell dans le conteneur Laravel
-	docker exec -it $(APP_CONTAINER) bash
+logs-nginx: ## Logs Nginx
+	@$(COMPOSE) logs -f nginx
 
-shell: bash ## Alias de bash
+logs-vite: ## Logs Vite
+	@$(COMPOSE) logs -f vite
 
-logs: ## Affiche les logs de tous les services
-	docker compose logs -f
+logs-db: ## Logs MySQL
+	@$(COMPOSE) logs -f mysql
 
-logs-app: ## Affiche les logs du conteneur Laravel uniquement
-	docker compose logs -f app
+# =============================================================
+#  🖥️  Shell
+# =============================================================
+bash: ## Ouvre un shell bash dans le conteneur Laravel
+	@$(EXEC_IT) bash
 
-logs-nginx: ## Affiche les logs Nginx
-	docker compose logs -f nginx
+shell: bash ## Alias pour bash
 
-logs-db: ## Affiche les logs MySQL
-	docker compose logs -f db
+bash-nginx: ## Ouvre un shell dans le conteneur Nginx
+	@$(COMPOSE) exec nginx sh
 
-# ============================================================
-#  Installation / Première utilisation
-# ============================================================
-install: ## Installation complète (première utilisation)
-	@echo "$(GREEN)🚀  Installation complète du projet...$(RESET)"
+bash-db: ## Ouvre un client MySQL
+	@$(COMPOSE) exec mysql mysql -uroot -proot portfolio
+
+# =============================================================
+#  🚀  Installation (première utilisation)
+# =============================================================
+install: ## Installation complète du projet (première fois)
+	@echo "$(GREEN)🚀  Installation de MonPortfolio...$(RESET)"
+	@echo ""
+	@# Copier .env si besoin
 	@if [ ! -f laravel/.env ]; then \
 		cp laravel/.env.example laravel/.env; \
 		echo "$(YELLOW)  .env créé depuis .env.example$(RESET)"; \
 	fi
-	docker compose up -d --build
-	@echo "$(YELLOW)  Attente du démarrage MySQL...$(RESET)"
-	sleep 10
+	@echo "$(YELLOW)▶  Build et démarrage des conteneurs...$(RESET)"
+	@$(COMPOSE) up -d --build --remove-orphans
+	@echo "$(YELLOW)⏳  Attente de MySQL (30s max)...$(RESET)"
+	@for i in $$(seq 1 15); do \
+		$(EXEC_DB) mysqladmin ping -uroot -proot --silent 2>/dev/null && break || sleep 2; \
+	done
+	@echo "$(YELLOW)🗄️   Création de la base de données...$(RESET)"
+	@$(EXEC_DB) mysql -uroot -proot -e \
+		"CREATE DATABASE IF NOT EXISTS portfolio CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;" 2>/dev/null || true
+	@echo "$(YELLOW)🔑  Génération de la clé...$(RESET)"
+	@$(EXEC) php artisan key:generate --force
+	@echo "$(YELLOW)🗄️   Migrations + seeders...$(RESET)"
+	@$(EXEC) php artisan migrate --seed --force
+	@echo "$(YELLOW)🔗  Lien symbolique storage...$(RESET)"
+	@$(EXEC) php artisan storage:link --force
 	@$(MAKE) fix-perms
-	docker exec $(APP_CONTAINER) php artisan key:generate
-	docker exec $(APP_CONTAINER) php artisan migrate --seed
-	docker exec $(APP_CONTAINER) php artisan storage:link
-	@echo "$(GREEN)✅  Installation terminée ! App disponible sur http://localhost:8081$(RESET)"
+	@echo ""
+	@echo "$(GREEN)========================================$(RESET)"
+	@echo "$(GREEN)✅  Installation terminée !$(RESET)"
+	@echo "$(GREEN)   App   → $(APP_URL)$(RESET)"
+	@echo "$(CYAN)   Vite  → http://localhost:5173$(RESET)"
+	@echo "$(GREEN)========================================$(RESET)"
 
-# ============================================================
-#  Statut
-# ============================================================
-ps: ## Affiche l'état des conteneurs
-	docker compose ps
+# =============================================================
+#  🩺  Diagnostic
+# =============================================================
+doctor: ## Diagnostic de l'état de la stack
+	@echo "$(YELLOW)🩺  Diagnostic MonPortfolio...$(RESET)"
+	@echo ""
+	@echo "$(CYAN)── État des conteneurs ──$(RESET)"
+	@$(COMPOSE) ps
+	@echo ""
+	@echo "$(CYAN)── PHP-FPM dans app ──$(RESET)"
+	@$(EXEC) php -v 2>/dev/null || echo "$(RED)  PHP non disponible$(RESET)"
+	@echo ""
+	@echo "$(CYAN)── Connexion MySQL ──$(RESET)"
+	@$(EXEC) php artisan db:show 2>/dev/null || \
+		$(EXEC_DB) mysqladmin ping -uroot -proot 2>/dev/null || \
+		echo "$(RED)  MySQL non joignable$(RESET)"
+	@echo ""
+	@echo "$(CYAN)── Derniers logs app (20 lignes) ──$(RESET)"
+	@$(COMPOSE) logs --tail=20 app
+	@echo ""
+	@echo "$(CYAN)── Derniers logs nginx (10 lignes) ──$(RESET)"
+	@$(COMPOSE) logs --tail=10 nginx
 
-.PHONY: help up start stop down restart rebuild \
-        fix-perms \
-        migrate migrate-fresh seed cache optimize key storage-link \
-        bash shell logs logs-app logs-nginx logs-db \
-        install ps
+.PHONY: help \
+        up up-core up-dev start stop down restart rebuild ps \
+        fix-perms create-db \
+        migrate migrate-fresh seed key storage-link cache-clear optimize \
+        logs logs-app logs-nginx logs-vite logs-db \
+        bash shell bash-nginx bash-db \
+        install doctor
