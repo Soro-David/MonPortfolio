@@ -6,9 +6,9 @@ services:
       context: .
       dockerfile: docker/php/Dockerfile
     container_name: monportfolio-app-prod
-    working_dir: /var/www/html
+    working_dir: /var/www/portfolio
     volumes:
-      - ./laravel:/var/www/html
+      - ./laravel:/var/www/portfolio
     depends_on:
       mysql:
         condition: service_healthy
@@ -25,7 +25,7 @@ services:
     ports:
       - "80:80"
     volumes:
-      - ./laravel:/var/www/html
+      - ./laravel:/var/www/portfolio
       - ./docker/nginx/nginx.prod.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
       - app
