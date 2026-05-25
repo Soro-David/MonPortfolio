@@ -52,8 +52,9 @@ case "$ACTION" in
     docker compose -f "$PROJECT_ROOT/docker-compose.prod.yml" exec -T app php artisan route:cache
     docker compose -f "$PROJECT_ROOT/docker-compose.prod.yml" exec -T app php artisan view:cache
 
-    echo "4. Exécution des migrations..."
+    echo "4. Exécution des migrations et seeders..."
     docker compose -f "$PROJECT_ROOT/docker-compose.prod.yml" exec -T app php artisan migrate --force
+    docker compose -f "$PROJECT_ROOT/docker-compose.prod.yml" exec -T app php artisan db:seed --force
 
     echo "✅ Déploiement terminé avec succès !"
     ;;
