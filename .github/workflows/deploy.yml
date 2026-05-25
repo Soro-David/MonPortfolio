@@ -19,8 +19,8 @@ jobs:
           port: ${{ secrets.VPS_PORT }}
           script: |
             echo "1. Aller dans le dossier du projet sur le VPS"
-            # MODIFIER CE CHEMIN SELON OÙ SE TROUVE VOTRE PROJET SUR LE VPS
-            cd /chemin/vers/votre/projet/MonPorfolio
+            # Chemin configuré par Ansible
+            cd /var/www/MonPortfolio
 
             echo "2. Récupérer les dernières modifications de GitHub"
             git pull origin main

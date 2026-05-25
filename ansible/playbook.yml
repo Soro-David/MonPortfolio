@@ -1,0 +1,98 @@
+---
+- name: Setup VPS for MonPortfolio
+  hosts: vps
+  become: yes
+  vars:
+    project_dir: /var/www/MonPortfolio
+    domain: sdd.mougnimawash.com
+    github_repo: https://github.com/Soro-David/MonPortfolio.git
+
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install required system packages
+      apt:
+        pkg:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - software-properties-common
+          - git
+          - nginx
+          - python3-certbot-nginx
+        state: present
+
+    - name: Add Docker GPG apt Key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add Docker Repository
+      apt_repository:
+        repo: deb https://download.docker.com/linux/ubuntu focal stable
+        state: present
+
+    - name: Install Docker and Docker Compose plugin
+      apt:
+        pkg:
+          - docker-ce
+          - docker-compose-plugin
+        state: present
+
+    - name: Ensure Docker service is running
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Add administrator user to docker group
+      user:
+        name: administrator
+        groups: docker
+        append: yes
+
+    - name: Ensure project directory exists
+      file:
+        path: "{{ project_dir }}"
+        state: directory
+        owner: administrator
+        group: docker
+        mode: "0775"
+
+    - name: Add github as safe directory
+      command: git config --global --add safe.directory "{{ project_dir }}"
+
+    - name: Clone Github repository
+      git:
+        repo: "{{ github_repo }}"
+        dest: "{{ project_dir }}"
+        version: main
+        force: yes
+        update: yes
+
+    - name: Configure Nginx reverse proxy
+      template:
+        src: nginx.conf.j2
+        dest: "/etc/nginx/sites-available/{{ domain }}"
+
+    - name: Enable Nginx site
+      file:
+        src: "/etc/nginx/sites-available/{{ domain }}"
+        dest: "/etc/nginx/sites-enabled/{{ domain }}"
+        state: link
+      notify: restart nginx
+
+    - name: Remove default Nginx site if it exists
+      file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+      notify: restart nginx
+
+  handlers:
+    - name: restart nginx
+      service:
+        name: nginx
+        state: restarted
