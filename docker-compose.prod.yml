@@ -13,7 +13,7 @@ services:
       mysql:
         condition: service_healthy
     env_file:
-      - ./laravel/.env.production
+      - ./laravel/.env
     networks:
       - monportfolio-prod
     restart: always
