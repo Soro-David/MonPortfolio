@@ -35,22 +35,26 @@ case "$ACTION" in
   "deploy")
     echo "▶ Lancement du DÉPLOIEMENT MANUEL sur le VPS..."
     git pull origin main
-    
+
+    # Toujours revenir à la racine du projet avant d'appeler docker compose
+    PROJECT_ROOT="$(cd "$(dirname "$0")" && pwd)"
+
     echo "1. Build des assets Javascript/CSS..."
-    cd laravel && npm install && npm run build && cd ..
-    
+    # Sous-shell pour que le 'cd laravel' n'affecte pas le répertoire courant
+    (cd "$PROJECT_ROOT/laravel" && npm install && npm run build) || echo "⚠ npm build ignoré (npm absent sur ce serveur)"
+
     echo "2. Redémarrage des conteneurs en production..."
-    docker compose -f docker-compose.prod.yml up -d --build
-    
+    docker compose -f "$PROJECT_ROOT/docker-compose.prod.yml" up -d --build
+
     echo "3. Installation des dépendances PHP et optimisation..."
-    docker compose -f docker-compose.prod.yml exec -T app composer install --optimize-autoloader --no-dev
-    docker compose -f docker-compose.prod.yml exec -T app php artisan config:cache
-    docker compose -f docker-compose.prod.yml exec -T app php artisan route:cache
-    docker compose -f docker-compose.prod.yml exec -T app php artisan view:cache
-    
+    docker compose -f "$PROJECT_ROOT/docker-compose.prod.yml" exec -T app composer install --optimize-autoloader --no-dev
+    docker compose -f "$PROJECT_ROOT/docker-compose.prod.yml" exec -T app php artisan config:cache
+    docker compose -f "$PROJECT_ROOT/docker-compose.prod.yml" exec -T app php artisan route:cache
+    docker compose -f "$PROJECT_ROOT/docker-compose.prod.yml" exec -T app php artisan view:cache
+
     echo "4. Exécution des migrations..."
-    docker compose -f docker-compose.prod.yml exec -T app php artisan migrate --force
-    
+    docker compose -f "$PROJECT_ROOT/docker-compose.prod.yml" exec -T app php artisan migrate --force
+
     echo "✅ Déploiement terminé avec succès !"
     ;;
     
