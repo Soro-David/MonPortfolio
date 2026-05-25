@@ -74,7 +74,7 @@ const isActive = (routeName) => {
                     </div>
                     <Transition name="fade-slide">
                         <div v-if="sidebarOpen" class="overflow-hidden">
-                            <p class="text-white font-bold text-base leading-tight whitespace-nowrap">Portfolio</p>
+                            <p class="text-white font-bold text-base leading-tight whitespace-nowrap">Mon Portfolio</p>
                             <p class="text-blue-200 text-xs whitespace-nowrap">Administration</p>
                         </div>
                     </Transition>
