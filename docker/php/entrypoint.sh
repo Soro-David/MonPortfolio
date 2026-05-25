@@ -29,5 +29,7 @@ php artisan migrate --force --no-interaction
 # Lien symbolique storage
 php artisan storage:link --force 2>/dev/null || true
 
-echo "🚀  Démarrage de php-fpm..."
+echo "🚀  Démarrage de php-fpm (Force 0.0.0.0)..."
+echo "[www]" > /usr/local/etc/php-fpm.d/99-custom.conf
+echo "listen = 0.0.0.0:9000" >> /usr/local/etc/php-fpm.d/99-custom.conf
 exec php-fpm
