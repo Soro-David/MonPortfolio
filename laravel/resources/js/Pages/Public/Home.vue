@@ -10,6 +10,7 @@ const props = defineProps({
 });
 
 const loading = ref(true);
+const mobileMenuOpen = ref(false);
 const currentSlide = ref(0);
 let sliderInterval = null;
 
@@ -103,25 +104,52 @@ const submitContact = () => {
 
     <div class="min-h-screen bg-blue-950">
         <!-- NAVBAR -->
-        <header class="fixed w-full top-0 z-50 bg-blue-900 shadow-lg border-b-4 border-yellow-400">
-            <nav class="container mx-auto px-6 py-0">
+        <header class="fixed w-full top-0 z-50 bg-blue-900/95 backdrop-blur-md shadow-lg border-b-4 border-yellow-400">
+            <nav class="container mx-auto px-4 md:px-6 py-0">
                 <div class="flex items-center justify-between h-16">
                     <!-- Logo -->
                     <div class="flex items-center gap-2">
                         <div class="w-9 h-9 bg-yellow-400 rounded-lg flex items-center justify-center shadow">
                             <span class="text-blue-900 font-black text-lg leading-none">SDD</span>
                         </div>
-                        <span class="text-white font-bold text-lg tracking-wide hidden sm:block">SORO DOGNENIN DAVID</span>
+                        <span class="text-white font-bold text-lg tracking-wide hidden lg:block">SORO DOGNENIN DAVID</span>
+                        <span class="text-white font-bold text-lg tracking-wide hidden sm:block lg:hidden">SORO DAVID</span>
                     </div>
-                    <!-- Liens -->
-                    <div class="flex items-center gap-1 md:gap-2">
+
+                    <!-- Desktop Menu -->
+                    <div class="hidden md:flex items-center gap-1 lg:gap-2">
                         <a href="#accueil" class="px-3 py-1.5 text-blue-200 hover:text-yellow-400 hover:bg-blue-800 rounded-lg transition font-medium text-sm">Accueil</a>
                         <a href="#apropos" class="px-3 py-1.5 text-blue-200 hover:text-yellow-400 hover:bg-blue-800 rounded-lg transition font-medium text-sm">À propos</a>
                         <a href="#competences" class="px-3 py-1.5 text-blue-200 hover:text-yellow-400 hover:bg-blue-800 rounded-lg transition font-medium text-sm">Compétences</a>
                         <a href="#projets" class="px-3 py-1.5 text-blue-200 hover:text-yellow-400 hover:bg-blue-800 rounded-lg transition font-medium text-sm">Projets</a>
                         <a href="#contact" class="px-4 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-lg transition font-semibold text-sm shadow ml-2">Contact</a>
                     </div>
+
+                    <!-- Mobile Menu Button -->
+                    <div class="md:hidden flex items-center">
+                        <button @click="mobileMenuOpen = !mobileMenuOpen" class="text-white hover:text-yellow-400 focus:outline-none p-2">
+                            <svg v-if="!mobileMenuOpen" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" />
+                            </svg>
+                            <svg v-else class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
                 </div>
+
+                <!-- Mobile Dropdown Menu -->
+                <Transition name="slide-down">
+                    <div v-if="mobileMenuOpen" class="md:hidden bg-blue-900 border-t border-blue-800 pb-6 pt-2">
+                        <div class="flex flex-col space-y-2 px-2">
+                            <a href="#accueil" @click="mobileMenuOpen = false" class="block px-4 py-3 text-blue-100 hover:bg-blue-800 rounded-xl transition">Accueil</a>
+                            <a href="#apropos" @click="mobileMenuOpen = false" class="block px-4 py-3 text-blue-100 hover:bg-blue-800 rounded-xl transition">À propos</a>
+                            <a href="#competences" @click="mobileMenuOpen = false" class="block px-4 py-3 text-blue-100 hover:bg-blue-800 rounded-xl transition">Compétences</a>
+                            <a href="#projets" @click="mobileMenuOpen = false" class="block px-4 py-3 text-blue-100 hover:bg-blue-800 rounded-xl transition">Projets</a>
+                            <a href="#contact" @click="mobileMenuOpen = false" class="block px-4 py-4 bg-red-500 text-white font-bold text-center rounded-xl shadow-lg mt-4">Me Contacter</a>
+                        </div>
+                    </div>
+                </Transition>
             </nav>
         </header>
 
@@ -149,11 +177,11 @@ const submitContact = () => {
                                 Portfolio
                             </span>
 
-                            <h1 class="mt-6 max-w-4xl text-5xl font-black leading-[0.95] text-yellow-300 drop-shadow-[0_6px_20px_rgba(0,0,0,0.45)] md:text-7xl xl:text-8xl">
+                            <h1 class="mt-6 max-w-4xl text-4xl font-black leading-tight text-yellow-300 drop-shadow-[0_6px_20px_rgba(0,0,0,0.45)] md:text-7xl xl:text-8xl">
                                 <span class="inline bg-blue-950/55 px-3 py-1 box-decoration-clone text-yellow-300">{{ activeHeroSlide.title }}</span>
                             </h1>
 
-                            <p v-if="activeHeroSlide?.slogan" class="mt-5 inline-block max-w-3xl rounded-2xl bg-yellow-400 px-5 py-3 text-xl font-extrabold text-blue-950 shadow-xl shadow-yellow-400/20 md:text-3xl">
+                            <p v-if="activeHeroSlide?.slogan" class="mt-5 inline-block max-w-[90%] rounded-2xl bg-yellow-400 px-4 py-2.5 text-lg font-extrabold text-blue-950 shadow-xl shadow-yellow-400/20 md:px-5 md:py-3 md:text-3xl">
                                 {{ activeHeroSlide.slogan }}
                             </p>
 
@@ -410,6 +438,17 @@ const submitContact = () => {
 .slide-fade-leave-to {
     opacity: 0;
     transform: translateY(24px);
+}
+
+.slide-down-enter-active,
+.slide-down-leave-active {
+    transition: all 0.3s ease-out;
+}
+
+.slide-down-enter-from,
+.slide-down-leave-to {
+    opacity: 0;
+    transform: translateY(-20px);
 }
 
 .animation-delay-150 {
