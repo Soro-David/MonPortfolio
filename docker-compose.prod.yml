@@ -39,15 +39,15 @@ services:
     container_name: monportfolio-mysql-prod
     environment:
       MYSQL_DATABASE: portfolio
-      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-RootProdSecured123!} 
-      MYSQL_USER: user
-      MYSQL_PASSWORD: ${DB_USER_PASSWORD:-UserProdSecured123!}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-Secret123} 
+      MYSQL_USER: root
+      MYSQL_PASSWORD: ${DB_USER_PASSWORD:-Secret123}
     volumes:
       - mysql_data_prod:/var/lib/mysql
     networks:
       - monportfolio-prod
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${DB_PASSWORD:-RootProdSecured123!}"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${DB_PASSWORD:-Secret123}"]
       interval: 10s
       timeout: 5s
       retries: 5
